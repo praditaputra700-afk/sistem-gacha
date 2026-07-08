@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rich Private Server - Gacha Roulette</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Animasi Efek Berjalan & Latar Belakang */
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        @keyframes wave-move {
+            0% { background-position-x: 0px; }
+            100% { background-position-x: 1000px; }
+        }
+
+        @keyframes border-run {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 200% 0%; }
+        }
+
+        body {
+            /* Tingkat kegelapan overlay dikurangi dari 0.65 menjadi 0.40 agar background jauh lebih terang */
+            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), 
+                        url('server-richps.jpeg') no-repeat center center fixed;
+            background-size: cover;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Tampilan Asimetris Modern dengan Efek Semi-Transparan (Kaca tembus pandang) */
+        .gacha-box-asymmetric {
+            transform: rotateX(5deg) rotateY(-4deg) rotateZ(1deg); 
+            box-shadow: 25px 25px 50px rgba(0, 0, 0, 0.6), 
+                        -10px -10px 30px rgba(239, 68, 68, 0.2);
+            border: 4px solid transparent;
+            border-image: linear-gradient(135deg, #ef4444, #ffffff, #b91c1c) 1;
+            /* Efek blur kaca tipis agar konten teks di dalam kotak tetap mudah dibaca */
+            backdrop-filter: blur(6px); 
+        }
+
+        /* Teks Berjalan di Atas */
+        .marquee-container {
+            background: linear-gradient(90deg, #ef4444, #b91c1c);
+            border-bottom: 3px solid #ffffff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .marquee-text {
+            display: inline-block;
+            white-space: nowrap;
+            animation: marquee 20s linear infinite;
+        }
+
+        /* Bingkai Token Efek LED Merah Putih Berjalan */
+        .token-border-flow {
+            background: linear-gradient(90deg, #ef4444 25%, #ffffff 50%, #ef4444 75%);
+            background-size: 200% auto;
+            animation: border-run 3s linear infinite;
+            padding: 3px;
+            border-radius: 9999px;
+        }
+
+        /* Desain Jalan Berjalan Bagian Bawah */
+        .bottom-road-effect {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.15), transparent);
+            border-top: 2px solid #ef4444;
+            box-shadow: 0 -10px 20px rgba(239, 68, 68, 0.4);
+        }
+        .road-stripes {
+            width: 100%;
+            height: 100%;
+            background-image: linear-gradient(90deg, #ffffff 50%, transparent 50%);
+            background-size: 80px 4px;
+            background-repeat: repeat-x;
+            background-position: center top;
+            opacity: 0.6;
+            animation: wave-move 4s linear infinite;
+        }
+
+        /* Roulette System */
+        .roulette-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 630px;
+            height: 140px;
+            overflow: hidden;
+            border: 4px solid #ef4444; 
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .pointer-line {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 100%;
+            background-color: #ef4444;
+            z-index: 10;
+            box-shadow: 0 0 15px #ef4444;
+        }
+
+        .roulette-track {
+            display: flex;
+            position: absolute;
+            left: 0;
+            top: 10px;
+            height: 120px;
+            transition: transform 5s cubic-bezier(0.1, 0.8, 0.1, 1);
+            will-change: transform;
+        }
+
+        .gacha-item {
+            width: 100px;
+            height: 100px;
+            margin: 0 5px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            border: 2px solid #f3f4f6;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        /* Tombol Gacha Asimetris */
+        .btn-gacha {
+            transition: all 0.1s ease;
+            box-shadow: -5px 6px 0 #b91c1c, -8px 10px 15px rgba(0,0,0,0.5);
+        }
+        .btn-gacha:active {
+            transform: translateY(4px) translateX(-2px);
+            box-shadow: -2px 2px 0 #b91c1c, -3px 4px 5px rgba(0,0,0,0.5);
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .pop-animation { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    </style>
+</head>
+<body class="h-screen flex flex-col justify-between text-white relative">
+
+    <div class="marquee-container w-full py-2 overflow-hidden z-20">
+        <div class="marquee-text text-sm font-bold tracking-widest text-white uppercase">
+            🔥 WELAMAT DATANG DI RICH PRIVATE SERVER GACHA &bull; KEBERUNTUNGAN ANDA DIMULAI DI SINI &bull; SILAKAN EDIT TIKET ANDA DAN MULAI BERMAIN! &bull; 🔥
+        </div>
+    </div>
+
+    <div class="flex justify-center items-center flex-grow px-4 my-4">
+        <div class="gacha-box-asymmetric bg-black/45 p-8 rounded-2xl w-full max-w-xl text-center border-2">
+            
+            <div class="w-full max-w-xs mx-auto mb-6">
+                <div class="token-border-flow">
+                    <div class="bg-gray-950/80 text-white rounded-full py-2 px-4 flex justify-between items-center shadow-inner gap-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Sisa Tiket:</span>
+                        
+                        <div class="flex items-center gap-2">
+                            <div id="counterArea" class="flex items-center gap-1">
+                                <span class="text-sm">🎟️</span>
+                                <span id="chanceCounter" class="text-xl font-black text-white drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]">10</span>
+                            </div>
+                            
+                            <button id="editBtn" class="bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded-md font-bold cursor-pointer transition-colors" title="Edit jumlah tiket">
+                                📝
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-6 -rotate-1">
+                <span class="bg-white text-red-700 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-widest border border-red-600 animate-pulse">RICH SERVER</span>
+                <h1 class="text-3xl font-black uppercase tracking-wide mt-1 text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">
+                    ROULETTE <span class="text-red-500">GACHA</span>
+                </h1>
+                <div class="w-16 h-1 bg-red-500 mx-auto mt-2 rounded-full"></div>
+            </div>
+
+            <div class="flex justify-center mb-8">
+                <div class="roulette-wrapper">
+                    <div class="pointer-line"></div>
+                    <div id="rouletteTrack" class="roulette-track">
+                        </div>
+                </div>
+            </div>
+
+            <button id="spinBtn" class="btn-gacha bg-white text-red-800 font-black text-lg px-12 py-3.5 rounded-xl uppercase tracking-wider cursor-pointer hover:bg-red-50 border-b-4 border-gray-300">
+                SPIN SEKARANG
+            </button>
+
+            <div id="resultModal" class="mt-6 h-16 opacity-0 flex flex-col items-center justify-center">
+                <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Anda Mendapatkan:</p>
+                <h2 id="prizeName" class="text-2xl font-black text-yellow-400 drop-shadow-[0_2px_2px_rgba(0,0,0,1)] mt-0.5"></h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="w-full relative h-20 z-10">
+        <div class="text-center text-xs text-gray-400 font-semibold uppercase tracking-widest mb-2 relative z-20 animate-pulse">
+            Rich Private Server &bull; Durasi Pas 5 Detik &bull; Anti-Blur
+        </div>
+        <div class="bottom-road-effect">
+            <div class="road-stripes"></div>
+        </div>
+    </div>
+
+    <script>
+        const items = [
+            { name: "World Lock", img: "🔒", color: "#9ca3af" },
+            { name: "Diamond Lock", img: "💎", color: "#3b82f6" },
+            { name: "Ruby Wrench", img: "🔧", color: "#ef4444" },
+            { name: "Devil Wings", img: "🪶", color: "#1f2937" },
+            { name: "Angel Wings", img: "👼", color: "#facc15" },
+            { name: "Blue Anemone", img: "🪼", color: "#06b6d4" },
+            { name: "Black G-Lock", img: "👑", color: "#8b5cf6" }
+        ];
+
+        const track = document.getElementById('rouletteTrack');
+        const spinBtn = document.getElementById('spinBtn');
+        const resultModal = document.getElementById('resultModal');
+        const prizeName = document.getElementById('prizeName');
+        const rouletteWrapper = document.querySelector('.roulette-wrapper');
+        
+        const counterArea = document.getElementById('counterArea');
+        const chanceCounter = document.getElementById('chanceCounter');
+        const editBtn = document.getElementById('editBtn');
+
+        const ITEM_WIDTH = 110; 
+        let isSpinning = false;
+        let isEditing = false;
+        let remainingChances = 10; 
+
+        function generateItems() {
+            track.innerHTML = '';
+            for (let i = 0; i < 80; i++) {
+                const randomItem = items[Math.floor(Math.random() * items.length)];
+                const itemEl = document.createElement('div');
+                itemEl.className = 'gacha-item text-black';
+                itemEl.style.borderTop = `6px solid ${randomItem.color}`;
+                itemEl.innerHTML = `
+                    <div class="text-3xl mb-1">${randomItem.img}</div>
+                    <div class="px-1 text-center font-bold">${randomItem.name}</div>
+                `;
+                track.appendChild(itemEl);
+            }
+        }
+
+        // Fitur Edit Angka Tiket Langsung
+        editBtn.addEventListener('click', () => {
+            if (isSpinning) return; 
+
+            if (!isEditing) {
+                isEditing = true;
+                editBtn.innerText = "💾"; 
+                counterArea.innerHTML = `
+                    <input type="number" id="ticketInput" class="w-16 bg-gray-800 text-white text-center font-bold rounded px-1 border border-red-500 focus:outline-none" value="${remainingChances}" min="0">
+                `;
+                document.getElementById('ticketInput').focus();
+            } else {
+                isEditing = false;
+                editBtn.innerText = "📝";
+                const inputVal = document.getElementById('ticketInput').value;
+                remainingChances = inputVal !== "" ? parseInt(inputVal) : 0;
+                
+                counterArea.innerHTML = `
+                    <span class="text-sm">🎟️</span>
+                    <span id="chanceCounter" class="text-xl font-black text-white drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]">${remainingChances}</span>
+                `;
+            }
+        });
+
+        generateItems();
+
+        spinBtn.addEventListener('click', () => {
+            if (isSpinning || isEditing) return;
+
+            if (remainingChances <= 0) {
+                alert("Tiket gacha Anda habis! Silakan edit tombol di atas untuk menambah tiket.");
+                return;
+            }
+
+            isSpinning = true;
+            spinBtn.disabled = true;
+            editBtn.disabled = true;
+            
+            remainingChances--;
+            document.getElementById('chanceCounter').innerText = remainingChances;
+            
+            resultModal.style.opacity = '0';
+            resultModal.classList.remove('pop-animation');
+            
+            track.style.transition = 'none';
+            track.style.transform = 'translateX(0px)';
+            track.offsetHeight; 
+
+            const targetIndex = 65 + Math.floor(Math.random() * 7);
+            const winnerItem = track.children[targetIndex];
+            const winnerName = winnerItem.querySelector('div:nth-child(2)').innerText;
+
+            const wrapperWidth = rouletteWrapper.offsetWidth;
+            const targetX = (wrapperWidth / 2) - (targetIndex * ITEM_WIDTH) - (ITEM_WIDTH / 2);
+
+            track.style.transition = 'transform 5s cubic-bezier(0.1, 0.8, 0.1, 1)';
+            track.style.transform = `translateX(${targetX}px)`;
+
+            setTimeout(() => {
+                prizeName.innerText = winnerName;
+                resultModal.style.opacity = '1';
+                resultModal.classList.add('pop-animation');
+                
+                isSpinning = false;
+                spinBtn.disabled = false;
+                editBtn.disabled = false;
+            }, 5000); 
+        });
+    </script>
+</body>
+</html>
